@@ -40,7 +40,7 @@ class Blog(models.Model):
     )
     category = models.ForeignKey(
         Category,
-        related_name='category_blog',
+        related_name='category_blogs',
         on_delete=models.CASCADE
     )
     tags = models.ManyToManyField(

@@ -1,4 +1,6 @@
 from unicodedata import category
+from django.http import JsonResponse
+from django.db.models import Q
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
 from django.core.paginator import PageNotAnInteger, EmptyPage, Paginator
@@ -92,7 +94,7 @@ def blog_details(request, slug):
     category = Category.objects.get(id=blog.category.id)
     related_blogs = category.category_blogs.all()
     tags = Tag.objects.order_by('-created_date')[:5]
-    print('sdfdsf')
+    liked_by = request.user in blog.likes.all()
     if request.method == "POST" and request.user.is_authenticated:
         form = TextForm(request.POST)
         if form.is_valid():
@@ -108,12 +110,13 @@ def blog_details(request, slug):
         'blog': blog,
         'related_blogs': related_blogs,
         'tags': tags,
-        'form': form
+        'form': form,
+        'liked_by': liked_by,
     }
 
     return render(request, 'blog_details.html', context)
 
-@login_required(login_url='/')
+@login_required(login_url='login')
 def add_reply(request, blog_id, comment_id):
     blog = get_object_or_404(Blog, id = blog_id)
     if request.method == 'POST':
@@ -127,3 +130,44 @@ def add_reply(request, blog_id, comment_id):
             )
 
     return redirect('blog_details', slug=blog.slug)
+
+@login_required(login_url='login')
+def like_blog(request, pk):
+    context = {}
+    blog = get_object_or_404(Blog, pk=pk)
+
+    if request.user in blog.likes.all():
+        blog.likes.remove(request.user)
+        context['liked'] = False
+        context['like_count'] = blog.likes.all().count()
+    else:
+        blog.likes.add(request.user)
+        context['liked'] = True
+        context['like_count'] = blog.likes.all().count()
+
+    return JsonResponse(context, safe=False)
+
+def search_blogs(request):
+    search_key = request.GET.get('search', None)
+    recent_blogs = Blog.objects.order_by('-created_date')
+    tags = Tag.objects.order_by('-created_date')
+    
+    if search_key:
+        blogs = Blog.objects.filter(
+            Q(title__icontains=search_key) |
+            Q(category__title__icontains=search_key) |
+            Q(user__username__icontains=search_key) |
+            Q(tags__title__icontains=search_key)
+        ).distinct()
+
+        context = {
+            "blogs": blogs,
+            "recent_blogs": recent_blogs,
+            "tags": tags,
+            "search_key": search_key
+        }
+
+        return render(request, 'search.html', context)
+
+    else:
+        return redirect('home')

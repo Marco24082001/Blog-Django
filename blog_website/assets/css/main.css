@@ -1,5 +1,11 @@
+
+
+.fa-heart {
+    color:red !important;
+}
+
 .empty-heart {
-    color: #AAAAAA ;
+    color: #AAAAAA !important ;
 }
 
 .blog-posts .submit-comment textarea {
